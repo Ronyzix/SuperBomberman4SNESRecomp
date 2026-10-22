@@ -1,0 +1,26 @@
+# ROM identity for Super Bomberman 4 — the single source of truth.
+#
+# Read by three consumers, so a revision change is made once, here:
+#   - the build   (CMake generates snesrecomp_rom_identity.h from this file)
+#   - tools/regen.sh
+#   - .github/workflows/release.yml
+#
+# Format is `key = value`, one per line; `#` starts a comment. Values may be
+# quoted. Leaving a digest empty means the build cannot verify a ROM it is
+# handed — it will say so rather than accept it.
+
+display_name    = Super Bomberman 4
+rom_file        = Super Bomberman 4 (Japan).sfc
+# Every digest of the bare image (copier header stripped), so the Retro
+# catalog can take a submission's identity from this file rather than ask
+# the submitter to hash the ROM again. The build verifies on crc32/sha256.
+expected_crc32  = 3bbaeb19
+expected_md5    = df33e261104efee409de8f294d80ad6e
+expected_sha1   = ff580e5a990b1eb4026fdc3669ec6f4a750b6309
+expected_sha256 = bdd90b49bf08d0d0a80e4b4ec811084d470355c648c49a28a0e838cbf1ea8f92
+rom_size        = 2097152
+mapping         = hirom
+region          = JPN
+# What a mod package's [[target]] game_id must name to apply to this title
+# (snesrecomp/docs/MOD_PACKAGES.md). Stable across revisions on purpose.
+game_id         = superbomberman4-jpn
