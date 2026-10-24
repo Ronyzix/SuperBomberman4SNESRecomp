@@ -197,7 +197,7 @@ public final class MainActivity extends SDLActivity {
     private void showAbout() {
         new AlertDialog.Builder(this)
                 .setTitle("Super Bomberman 4 — Android nativo")
-                .setMessage("App Android SDL3/NDK: alguns trechos 65C816 são recompilados em C; os demais usam o fallback interpretado do runtime SNESRecomp. Não é uma recompilação integral 100% AOT.\n\nA ROM fornecida pelo usuário e os saves ficam no armazenamento específico do app. O manifesto não solicita permissão de rede.\n\nControles: direcional, A/B/X/Y, L/R, Select e Start. Gamepads compatíveis também podem ser usados. Licenças e avisos estão incluídos neste APK.")
+                .setMessage("Progresso AOT no escopo atual: 82,2% das instâncias de instrução elegíveis a AOT (405/493 em cinco raízes analisadas); 21/23 variantes (91,3%). Estes números não representam a porcentagem do jogo/ROM concluída.\n\nApp Android SDL3/NDK: alguns trechos 65C816 são recompilados em C; o código não mapeado usa o fallback interpretado do runtime SNESRecomp. A paridade completa de gameplay ainda não foi validada.\n\nA ROM fornecida pelo usuário e os saves ficam no armazenamento específico do app. O manifesto não solicita permissão de rede.\n\nControles: direcional, A/B/X/Y, L/R, Select e Start. Gamepads compatíveis também podem ser usados. Licenças e avisos estão incluídos neste APK.")
                 .setNeutralButton("Licenças", (dialog, which) -> showLicenseIndex())
                 .setPositiveButton("Voltar ao jogo", null)
                 .show();

@@ -9,7 +9,7 @@ A native Android port of **Super Bomberman 4** (Japan), built on
 
 An Android arm64 debug APK was compiled on 2026-10-24. The APK contains native `libmain.so` and SDL3 libraries, the supplied ROM, and the license/attribution documents listed in the in-app Licenses screen. Touch controls are implemented in the native Android activity, but gameplay and touch input have **not** been verified on a physical device.
 
-This remains a **partial recompilation**, not a complete 100% AOT/source port: the current manifest contains 21 AOT variants and 2 LLE-only variants, while unresolved 65C816 execution continues through the SNESRecomp interpreter fallback. These counts are not coverage percentages of the whole ROM. Differential testing matched video/VRAM through frame 18; WRAM first differed at frame 19, while the image remained identical through frame 32. Full gameplay parity is not claimed. See [Porting from here](#porting-from-here).
+**Measured AOT progress in the current analysis scope:** 405 of 493 instruction instances across five selected roots are marked AOT-eligible (**82.2%**); 21 of 23 manifest variants (**91.3%**) are AOT-eligible. These are scoped manifest metrics, not the percentage of the full game or ROM completed. Unmapped 65C816 execution still uses the SNESRecomp interpreter fallback. Differential testing matched video/VRAM through frame 18; WRAM first differed at frame 19, while the image remained identical through frame 32. Full gameplay parity is not claimed. See [Porting from here](#porting-from-here).
 
 ## ROM identity
 
