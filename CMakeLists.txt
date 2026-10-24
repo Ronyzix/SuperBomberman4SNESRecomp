@@ -1,6 +1,16 @@
 cmake_minimum_required(VERSION 3.20)
 project(SuperBomberman4SNESRecomp C CXX)
 
+option(SB4_ANDROID "Build the Android ARM64 application after host compiler detection" OFF)
+if(SB4_ANDROID)
+    set(ANDROID TRUE)
+    set(CMAKE_SYSTEM_NAME Android)
+    set(CMAKE_SYSTEM_VERSION 24)
+    set(ANDROID_ABI "arm64-v8a")
+    set(ANDROID_PLATFORM "android-24")
+    set(ANDROID_STL "c++_shared")
+endif()
+
 set(CMAKE_C_STANDARD 11)
 
 # Release pin for lobby matching. Release builds stamp the VERSION file so two
@@ -34,15 +44,26 @@ endif()
 # Must precede the include: runner.cmake reads it to add the loader sources.
 set(SNESRECOMP_ENABLE_MODS ON CACHE BOOL
     "Mod package loader + trusted plugins (required for every title)" FORCE)
+if(ANDROID)
+    set(SNESRECOMP_EXECUTION_DEFAULT "on" CACHE STRING
+        "Use available native C fast paths on Android; unsupported code keeps LLE fallback" FORCE)
+endif()
 include(${SNESRECOMP_ROOT}/runner/runner.cmake)
 
-add_executable(SuperBomberman4SNESRecomp
+set(SB4_GAME_SOURCES
     ${SNESRECOMP_RUNNER_SOURCES}
     src/main.c
     src/host_contract.c
     src/game_rtl.c
     src/gen_stubs.c
 )
+if(ANDROID)
+    list(APPEND SB4_GAME_SOURCES src/android_input.c)
+    add_library(SuperBomberman4SNESRecomp SHARED ${SB4_GAME_SOURCES})
+    set_target_properties(SuperBomberman4SNESRecomp PROPERTIES OUTPUT_NAME main)
+else()
+    add_executable(SuperBomberman4SNESRecomp ${SB4_GAME_SOURCES})
+endif()
 
 # ROM identity. rom_identity.txt is the one place the digests live: the build
 # turns it into snesrecomp_rom_identity.h (SNESRECOMP_ROM_EXPECTED_SHA256 and
@@ -91,6 +112,38 @@ target_compile_definitions(SuperBomberman4SNESRecomp PRIVATE
     SNES_GAME_TITLE="Super Bomberman 4"
 )
 snesrecomp_target_sdl(SuperBomberman4SNESRecomp)
+if(ANDROID)
+    set(SB4_CXX_SHARED_RUNTIME
+        "${ANDROID_NDK_ROOT}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so")
+    set(SB4_CXX_UNWIND_RUNTIME
+        "${ANDROID_NDK_ROOT}/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/19/lib/linux/aarch64/libunwind.a")
+    if(NOT EXISTS "${SB4_CXX_SHARED_RUNTIME}")
+        message(FATAL_ERROR "libc++_shared.so do NDK não encontrado: ${SB4_CXX_SHARED_RUNTIME}")
+    endif()
+    if(NOT EXISTS "${SB4_CXX_UNWIND_RUNTIME}")
+        message(FATAL_ERROR "libunwind.a do NDK não encontrado: ${SB4_CXX_UNWIND_RUNTIME}")
+    endif()
+    target_link_options(SuperBomberman4SNESRecomp PRIVATE -stdlib=libc++)
+    target_link_libraries(SuperBomberman4SNESRecomp PRIVATE
+        "${SB4_CXX_SHARED_RUNTIME}" "${SB4_CXX_UNWIND_RUNTIME}")
+    set_target_properties(SuperBomberman4SNESRecomp PROPERTIES
+        SKIP_BUILD_RPATH TRUE BUILD_RPATH "" INSTALL_RPATH "")
+    if(TARGET SDL3-shared)
+        target_link_options(SDL3-shared PRIVATE -stdlib=libc++)
+        target_link_libraries(SDL3-shared PRIVATE
+            "${SB4_CXX_SHARED_RUNTIME}" "${SB4_CXX_UNWIND_RUNTIME}")
+        set_target_properties(SDL3-shared PROPERTIES
+            SKIP_BUILD_RPATH TRUE BUILD_RPATH "" INSTALL_RPATH "")
+    endif()
+endif()
+if(ANDROID AND TARGET SDL3::SDL3-shared)
+    add_custom_command(TARGET SuperBomberman4SNESRecomp POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_FILE:SDL3::SDL3-shared>
+            $<TARGET_FILE_DIR:SuperBomberman4SNESRecomp>
+        COMMENT "Staging libSDL3.so beside the Android game library"
+        VERBATIM)
+endif()
 
 # The desktop host: launcher flow, ROM resolution, config.ini + [KeyMap],
 # window + SDL/OpenGL presenters, audio, gamepads, the save-state browser and
@@ -102,7 +155,9 @@ snesrecomp_target_desktop_host(SuperBomberman4SNESRecomp)
 # rom.cfg (the ROM the wizard set this project up from; git-ignored) is
 # staged beside the executable when none is there yet, so the first launch
 # opens on that dump rather than asking for one.
-snesrecomp_target_rom_cache(SuperBomberman4SNESRecomp)
+if(NOT ANDROID)
+    snesrecomp_target_rom_cache(SuperBomberman4SNESRecomp)
+endif()
 
 # No GUI launcher: this project was scaffolded with --no-recomp-ui.
 # Add the submodule and re-run this block to get one:

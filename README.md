@@ -1,115 +1,91 @@
 # Super Bomberman 4 Recomp
 
-A native recompilation of **Super Bomberman 4** (JPN), built on
-[snesrecomp](https://github.com/RetroPortingToolKit/snesrecomp).
+A native Android port of **Super Bomberman 4** (Japan), built on
+[SNESRecomp](https://github.com/RetroPortingToolKit/snesrecomp), SDL3, the Android NDK, and a native touch-controller activity. The Android app does not use Expo, WebView, or an emulator frontend.
 
-_Add a short description here._
-
-
-
-> **You must legally own a copy of the game.** No ROM data is distributed with
-> this project, in the repository or in any release. The recompiled C is
-> generated locally from your own copy and is never committed.
+> **Private test build.** The source tree excludes raw ROM files. The APK under `artifacts/` embeds the ROM supplied by the user for authorized private testing; keep this repository private and do not redistribute the APK or game data.
 
 ## Status
 
-Scaffolded on 2026-10-22 — **not yet a working port.** The layout, build,
-regeneration pipeline, CI, and packaging are wired up; the game does not run
-until the host work in `src/game_rtl.c` is done. See
-[Porting from here](#porting-from-here).
+An Android arm64 debug APK was compiled on 2026-10-24. The APK contains native `libmain.so` and SDL3 libraries, the supplied ROM, and the license/attribution documents listed in the in-app Licenses screen. Touch controls are implemented in the native Android activity, but gameplay and touch input have **not** been verified on a physical device.
+
+This remains a **partial recompilation**, not a complete 100% AOT/source port: the current manifest contains 21 AOT variants and 2 LLE-only variants, while unresolved 65C816 execution continues through the SNESRecomp interpreter fallback. These counts are not coverage percentages of the whole ROM. Differential testing matched video/VRAM through frame 18; WRAM first differed at frame 19, while the image remained identical through frame 32. Full gameplay parity is not claimed. See [Porting from here](#porting-from-here).
 
 ## ROM identity
 
 | | |
 |---|---|
 | File | `Super Bomberman 4 (Japan).sfc` |
-| Publisher | — |
-| Developer | — |
-| Year | — |
 | Mapping | hirom |
 | Region | JPN (Japan) |
 | Coprocessor | none |
 | CRC32 | `3bbaeb19` |
 | SHA-256 | `bdd90b49bf08d0d0a80e4b4ec811084d470355c648c49a28a0e838cbf1ea8f92` |
 
-`tools/regen.sh` refuses to run against anything else, so a mismatched
-revision fails immediately instead of producing subtly wrong output.
+`tools/regen.sh` refuses to run against a different ROM revision. The raw ROM is excluded by `.gitignore`; the private APK artifact embeds the user-supplied ROM.
 
 ## Build
 
+Initialize the framework and re-apply the Android SDL3 linkage patch saved in this repository (it only changes Android builds; it was not pushed to the public SNESRecomp upstream):
+
 ```sh
 git submodule update --init --recursive
-bash tools/regen.sh --rom /path/to/Super Bomberman 4 (Japan).sfc
+git -C snesrecomp apply ../patches/snesrecomp-android-sdl-shared.patch
+```
+
+For the desktop host, provide the matching ROM and build:
+
+```sh
+bash tools/regen.sh --rom "/path/to/Super Bomberman 4 (Japan).sfc"
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j
 ```
 
-The ROM does not have to live in the repository — keeping it on your own
-drive is the better habit, and `SNESRECOMP_ROM` sets the path once for a
-shell. Without either, `tools/regen.sh` finds `Super Bomberman 4 (Japan).sfc` at the repo root,
-then the path the setup wizard recorded in `rom.cfg`; `.gitignore` blocks
-both from ever being committed.
+For Android, place the authorized ROM at the ignored path `android/app/src/main/assets/rom.sfc`, then build the debug APK:
 
-`tools/regen.sh` verifies the ROM, generates `src/gen/*.c`, and re-syncs
-`recomp/funcs.h`. Re-run it whenever you change anything under `recomp/`.
+```sh
+bash tools/regen.sh --rom "/path/to/Super Bomberman 4 (Japan).sfc"
+cd android
+./gradlew assembleDebug
+```
+
+The deliverable in `artifacts/SuperBomberman4-Android-Native.apk` is a private test binary and includes the ROM. Do not change repository visibility to public while that artifact remains present.
 
 ## Run
 
 ```sh
 ./build/SuperBomberman4SNESRecomp                     # launcher picks the ROM
-./build/SuperBomberman4SNESRecomp /path/to/Super Bomberman 4 (Japan).sfc # or name it and skip the launcher
+./build/SuperBomberman4SNESRecomp "/path/to/Super Bomberman 4 (Japan).sfc"
 ```
 
-With no ROM on the command line the build opens the recomp-ui launcher: a ROM
-picker with a verification badge, plus display / audio / input settings. Your
-choice is cached in `rom.cfg` beside the executable, so the next launch opens
-on it and "Skip launcher on boot" makes it immediate. If the launcher is not
-built in (`--no-recomp-ui`), the host falls back to a native file picker.
-
-Either way the ROM is checked against the digests above before anything boots
-— a dump that could not have produced this build is refused at the door rather
-than mis-executing ten frames in.
+With no ROM on the command line the build opens the recomp-ui launcher: a ROM picker with a verification badge, plus display/audio/input settings. Your choice is cached in `rom.cfg` beside the executable. The ROM is checked against the digests above before anything boots.
 
 ## Layout
 
 | Path | What lives there |
 |---|---|
-| `recomp/` | Analysis input: `bank*.cfg`, `symbols.toml`, generated `funcs.h` |
-| `rom_identity.txt` | ROM digests — read by the build, `tools/regen.sh` and CI |
-| `src/` | Host code you own: `main.c`, `game_rtl.c` |
-| `src/gen/` | Generated C. Never committed — regenerate locally |
-| `snesrecomp/` | Framework submodule (owns `lib/recomp-net`, `lib/retcomm-rbengine`) |
-| `tools/` | `regen.sh` — the ROM → C pipeline |
-| `scripts/` | `package_release.sh` — player-facing zip |
-| `framework_pins.txt` | Exact framework commits this project was scaffolded against |
+| `recomp/` | Analysis input: bank configs and `symbols.toml` |
+| `src/` | Native host code, including Android input integration |
+| `src/gen/` | Generated C; ignored and regenerated locally |
+| `snesrecomp/` | Upstream framework submodule |
+| `patches/` | Reproducible local Android SDL3 framework patch |
+| `android/` | Native Android/SDL3 app, touch controls and license assets |
+| `artifacts/` | Private APK deliverable; embeds the user-provided ROM |
+| `tools/` | ROM verification and recompilation pipeline |
 
 ## Porting from here
 
-The scaffold stops where the game-specific work starts. In rough order:
-
-1. **Make it boot.** `src/game_rtl.c` holds the frame driver. It starts on
-   the framework's beam-aligned driver (`snesrecomp/runner/src/beam_frame_driver.h`):
-   one frame per PPU field, interrupts taken where the beam latches them,
-   the field rasterized from the raster journal. A title whose main loop it
-   does not fit replaces those calls with its own driver.
-2. **Name things.** Add entries to `recomp/symbols.toml` as you identify
-   routines, then re-run `tools/regen.sh`. Set `emit = true` to promote one
-   into ahead-of-time analysis; leave it false to keep it interpreted.
-   Regen synchronizes the marked blocks in each bank cfg, creating missing
-   configs. Only proven variants become AOT code. See `recomp/README.md`.
-3. **Resolve dispatch misses.** After every run, deal with unresolved
-   indirect targets before anything else — they are the reason a port
-   diverges, and they are cheap to fix early.
-4. **Never synthesise a result** to get past uncovered code, and never edit
-   `src/gen/` by hand. Fix the config or the framework and regenerate.
+1. **Make it boot.** `src/game_rtl.c` holds the frame driver. It uses the framework's beam-aligned driver and raster journal.
+2. **Name things.** Add entries to `recomp/symbols.toml` as routines are identified, then re-run `tools/regen.sh`. Set `emit = true` only for proven variants; unresolved code remains interpreted.
+3. **Resolve dispatch misses.** Handle unresolved indirect targets before promoting more code.
+4. **Never synthesize a result** to get past uncovered code, and never edit `src/gen/` by hand. Fix the config/framework and regenerate.
 
 ## Multiplayer
 
 Two players, one controller per port.
 
-## License
+## License and notices
 
-This project's own source is under the license in `LICENSE`. The framework
-carries its own terms — see `snesrecomp/LICENSE` and
-`snesrecomp/THIRD_PARTY_ATTRIBUTION.md`. Neither covers the game data, which
-is not distributed here.
+This project's own source uses the license in `LICENSE`. The framework has separate terms in `snesrecomp/LICENSE` and `snesrecomp/THIRD_PARTY_ATTRIBUTION.md`. The Android app also bundles SDL3, Android NDK/toolchain notices, a GPLv3 reference text with an applicability note, and a ROM-provenance notice. The GPL reference cores are not bundled in the APK runtime.
+
+The ROM and game content are not licensed by this repository's software license. The raw ROM is not committed; the private APK artifact does contain the ROM supplied by the user and is not a public release or a grant of redistribution rights.

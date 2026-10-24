@@ -1,0 +1,9 @@
+AVISO DE PROCEDÊNCIA DA ROM — NÃO É UMA LICENÇA DO JOGO
+
+Este APK de teste privado incorpora em assets/rom.sfc a ROM Super Bomberman 4 (Japan) fornecida pelo usuário para esta tarefa.
+Tamanho: 2.097.152 bytes
+SHA-256: bdd90b49bf08d0d0a80e4b4ec811084d470355c648c49a28a0e838cbf1ea8f92
+
+O nome do jogo, código original, personagens, imagens, música e demais elementos permanecem sujeitos aos direitos de seus respectivos titulares. Este aviso não concede direitos sobre esses elementos nem autorização geral para redistribuir a ROM ou o APK. O uso da ROM neste build é limitado ao teste privado autorizado pelo usuário.
+
+A licença PolyForm do SNESRecomp refere-se ao software SNESRecomp e não licencia a ROM nem o conteúdo do jogo.

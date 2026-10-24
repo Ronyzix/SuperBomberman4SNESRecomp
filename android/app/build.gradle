@@ -1,0 +1,129 @@
+plugins {
+    id 'com.android.application'
+}
+
+final String sb4NdkVersion = '28.2.13676358'
+def sdkProperties = new Properties()
+def sdkPropertiesFile = rootProject.file('local.properties')
+if (sdkPropertiesFile.isFile()) {
+    sdkPropertiesFile.withInputStream { sdkProperties.load(it) }
+}
+final String sdkPath = sdkProperties.getProperty('sdk.dir')
+        ?: System.getenv('ANDROID_SDK_ROOT')
+        ?: System.getenv('ANDROID_HOME')
+        ?: "${System.getProperty('user.home')}/Android/Sdk"
+final File sb4NdkRoot = file("${sdkPath}/ndk/${sb4NdkVersion}")
+final String sb4Clang = System.getenv('SB4_CLANG') ?: '/usr/bin/clang-18'
+final String sb4Clangxx = System.getenv('SB4_CLANGXX') ?: '/usr/bin/clang++-18'
+final String sb4Lld = System.getenv('SB4_LLD') ?: '/usr/bin/ld.lld-18'
+final File sb4GameRoot = file('../..')
+final File sb4NativeBuildDir = file("${buildDir}/native-cmake")
+final File sb4GeneratedJniLibs = file("${buildDir}/generated/sb4-native/jniLibs")
+final File sb4SdlSource = file("${sb4GameRoot}/build/_deps/sdl3-src")
+
+android {
+    namespace 'com.manus.sbomber4'
+    compileSdk 36
+    buildToolsVersion '36.1.0'
+    ndkVersion sb4NdkVersion
+
+    defaultConfig {
+        applicationId 'com.manus.sbomber4'
+        minSdk 24
+        targetSdk 35
+        versionCode 1
+        versionName '1.0.0'
+        ndk {
+            abiFilters 'arm64-v8a'
+        }
+    }
+
+    sourceSets {
+        main {
+            jniLibs.srcDir sb4GeneratedJniLibs
+        }
+    }
+
+    buildTypes {
+        debug {
+            minifyEnabled false
+        }
+        release {
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = false
+            keepDebugSymbols += ['**/libmain.so', '**/libSDL3.so', '**/libc++_shared.so']
+        }
+    }
+}
+
+tasks.register('configureNative', Exec) {
+    workingDir sb4GameRoot
+    doFirst {
+        if (!sb4NdkRoot.isDirectory()) {
+            throw new GradleException("Android NDK ${sb4NdkVersion} não encontrado em ${sb4NdkRoot}")
+        }
+        if (!file(sb4Clang).canExecute() || !file(sb4Clangxx).canExecute() || !file(sb4Lld).canExecute()) {
+            throw new GradleException('Clang/Clang++/LLD ARM64 do host não encontrados; defina SB4_CLANG, SB4_CLANGXX e SB4_LLD')
+        }
+        List<String> args = [
+                'cmake',
+                '-S', sb4GameRoot.absolutePath,
+                '-B', sb4NativeBuildDir.absolutePath,
+                '-G', 'Ninja',
+                "-DCMAKE_TOOLCHAIN_FILE=${rootProject.projectDir}/arm64-clang-toolchain.cmake",
+                "-DANDROID_NDK_ROOT=${sb4NdkRoot.absolutePath}",
+                "-DSB4_CLANG=${sb4Clang}",
+                "-DSB4_CLANGXX=${sb4Clangxx}",
+                "-DSB4_LLD=${sb4Lld}",
+                '-DSB4_ANDROID=ON',
+                '-DSNESRECOMP_EXECUTION_DEFAULT=on',
+                '-DSNESRECOMP_SDL3_FETCH=ON',
+                '-DCMAKE_BUILD_TYPE=Debug'
+        ]
+        if (sb4SdlSource.isDirectory()) {
+            args.add("-DSNESRECOMP_SDL3_SOURCE_DIR=${sb4SdlSource.absolutePath}")
+        }
+        commandLine(args)
+    }
+    outputs.upToDateWhen { false }
+}
+
+tasks.register('buildNative', Exec) {
+    dependsOn 'configureNative'
+    workingDir sb4GameRoot
+    commandLine 'cmake', '--build', sb4NativeBuildDir.absolutePath,
+            '--target', 'SuperBomberman4SNESRecomp', '--parallel', '4'
+    outputs.upToDateWhen { false }
+}
+
+tasks.register('stageNativeLibs', Copy) {
+    dependsOn 'buildNative'
+    from(sb4NativeBuildDir) {
+        include 'libmain.so'
+        include 'libSDL3.so'
+    }
+    from(new File(sb4NdkRoot,
+            'toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so'))
+    into(file("${sb4GeneratedJniLibs}/arm64-v8a"))
+    doLast {
+        ['libmain.so', 'libSDL3.so', 'libc++_shared.so'].each { name ->
+            if (!file("${sb4GeneratedJniLibs}/arm64-v8a/${name}").isFile()) {
+                throw new GradleException("Biblioteca Android nativa ausente: ${name}")
+            }
+        }
+    }
+}
+
+tasks.named('preBuild').configure {
+    dependsOn 'stageNativeLibs'
+}

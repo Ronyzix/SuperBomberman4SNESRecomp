@@ -14,10 +14,9 @@
  * so every project scaffolded before a fix kept the bug. Two ports of the
  * same game, a week apart, had different hosts.
  *
- * Nothing here ever ships a ROM. The player supplies one; the host makes
- * that easy (launcher, then positional argument, then a copy beside the
- * executable, then the rom.cfg cache, then a file picker) and checks what it
- * is handed against the digests in rom_identity.txt.
+ * Desktop sources/releases do not ship a ROM. The private Android debug APK
+ * built for this request embeds the user's supplied, hash-verified ROM; do not
+ * redistribute that APK beyond the permission the user obtained.
  *
  * Grow this file only with what is specific to THIS title: a custom
  * presenter (prepare_frame / draw_frame), an SPC player, a pacing rule
@@ -28,6 +27,7 @@
 #include "host_main.h"
 #include "game_rtl.h"
 #include "snesrecomp_rom_identity.h"  /* generated from rom_identity.txt */
+#include <string.h>
 
 #ifndef __ANDROID__
 #define SDL_MAIN_HANDLED 1
@@ -61,7 +61,24 @@ static const SnesDesktopHostGame kGameHost = {
 #ifndef __ANDROID__
 #undef main   /* desktop: keep plain main() even if SDL_main.h remapped it */
 #endif
+#ifdef __ANDROID__
+void sb4_android_pad_start(void);
+void sb4_android_pad_stop(void);
+#endif
+
 int main(int argc, char **argv)
 {
+#ifdef __ANDROID__
+    for (int i = 0; i < argc; ++i) {
+        if (argv[i] != NULL && strcmp(argv[i], "--sb4-startup-error") == 0) {
+            return 0;
+        }
+    }
+    sb4_android_pad_start();
+    int result = snesrecomp_desktop_main(&kGameHost, argc, argv);
+    sb4_android_pad_stop();
+    return result;
+#else
     return snesrecomp_desktop_main(&kGameHost, argc, argv);
+#endif
 }

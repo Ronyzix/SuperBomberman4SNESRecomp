@@ -1,0 +1,5 @@
+ESCOPO DO TEXTO GPLv3
+
+O texto completo GNU GPL versão 3 está incluído neste APK a pedido do usuário, junto dos avisos de dependências de referência listados em SNESRecomp-THIRD_PARTY_ATTRIBUTION.md.
+
+A inspeção do APK não encontrou os cores libretro bsnes ou Snes9x: eles são dependências de referência usadas fora do aplicativo final e não estão empacotados nem ligados ao runtime Android. A presença do texto da GPL aqui, por si só, não aplica a GPL ao código SNESRecomp, ao SDL3 ou à ROM do jogo; consulte os avisos específicos de cada componente.

@@ -1,0 +1,24 @@
+[1mdiff --git a/runner/runner.cmake b/runner/runner.cmake[m
+[1mindex e05c46a..de84f08 100644[m
+[1m--- a/runner/runner.cmake[m
+[1m+++ b/runner/runner.cmake[m
+[36m@@ -104,10 +104,15 @@[m [mfunction(snesrecomp_target_sdl target)[m
+                 "${SNESRECOMP_SDL3_FETCH_VERSION} from source "[m
+                 "(-DSNESRECOMP_SDL3_FETCH=OFF to require an installed one)")[m
+             include(FetchContent)[m
+[31m-            # Static, so the finished executable carries its SDL and a[m
+[31m-            # release zip does not have to ship a shared library beside it.[m
+[31m-            set(SDL_SHARED OFF CACHE BOOL "" FORCE)[m
+[31m-            set(SDL_STATIC ON CACHE BOOL "" FORCE)[m
+[32m+[m[32m            # The Android Java Activity loads SDL3.so before the title library;[m
+[32m+[m[32m            # desktop targets keep the self-contained static SDL default.[m
+[32m+[m[32m            if(ANDROID)[m
+[32m+[m[32m                set(SDL_SHARED ON CACHE BOOL "" FORCE)[m
+[32m+[m[32m                set(SDL_STATIC OFF CACHE BOOL "" FORCE)[m
+[32m+[m[32m            else()[m
+[32m+[m[32m                set(SDL_SHARED OFF CACHE BOOL "" FORCE)[m
+[32m+[m[32m                set(SDL_STATIC ON CACHE BOOL "" FORCE)[m
+[32m+[m[32m            endif()[m
+             set(SDL_TEST_LIBRARY OFF CACHE BOOL "" FORCE)[m
+             set(SDL_TESTS OFF CACHE BOOL "" FORCE)[m
+             set(SDL_EXAMPLES OFF CACHE BOOL "" FORCE)[m

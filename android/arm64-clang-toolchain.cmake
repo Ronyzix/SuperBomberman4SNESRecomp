@@ -1,0 +1,41 @@
+# Toolchain Linux ARM64 -> Android arm64-v8a.
+# O CMake 3.28 do host tenta selecionar compiladores Android x86 quando
+# CMAKE_SYSTEM_NAME=Android; por isso o compilador é detectado como Linux e o
+# projeto muda para ANDROID somente depois de project() no CMakeLists raiz.
+if(NOT DEFINED ANDROID_NDK_ROOT)
+    message(FATAL_ERROR "Passe -DANDROID_NDK_ROOT=<raiz do NDK>")
+endif()
+if(NOT DEFINED SB4_CLANG OR NOT DEFINED SB4_CLANGXX OR NOT DEFINED SB4_LLD)
+    message(FATAL_ERROR "Passe SB4_CLANG, SB4_CLANGXX e SB4_LLD do host")
+endif()
+
+set(_sb4_ndk_host "${ANDROID_NDK_ROOT}/toolchains/llvm/prebuilt/linux-x86_64")
+set(_sb4_sysroot "${_sb4_ndk_host}/sysroot")
+set(_sb4_resource_dir "${_sb4_ndk_host}/lib/clang/19")
+if(NOT EXISTS "${_sb4_sysroot}/usr/lib/aarch64-linux-android/24/libc.so")
+    message(FATAL_ERROR "Sysroot ARM64 API 24 do NDK não encontrado: ${_sb4_sysroot}")
+endif()
+if(NOT EXISTS "${_sb4_resource_dir}/lib/linux/libclang_rt.builtins-aarch64-android.a")
+    message(FATAL_ERROR "compiler-rt AArch64 Android do NDK não encontrado: ${_sb4_resource_dir}")
+endif()
+
+set(CMAKE_SYSTEM_NAME Linux)
+set(CMAKE_SYSTEM_PROCESSOR aarch64)
+set(CMAKE_SYSROOT "${_sb4_sysroot}" CACHE PATH "Android NDK sysroot" FORCE)
+set(CMAKE_C_COMPILER "${SB4_CLANG}" CACHE FILEPATH "Host ARM64 Clang" FORCE)
+set(CMAKE_CXX_COMPILER "${SB4_CLANGXX}" CACHE FILEPATH "Host ARM64 Clang++" FORCE)
+set(CMAKE_C_COMPILER_TARGET "aarch64-linux-android24" CACHE STRING "Android target triple" FORCE)
+set(CMAKE_CXX_COMPILER_TARGET "aarch64-linux-android24" CACHE STRING "Android target triple" FORCE)
+list(APPEND CMAKE_TRY_COMPILE_PLATFORM_VARIABLES
+    ANDROID_NDK_ROOT SB4_CLANG SB4_CLANGXX SB4_LLD)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(CMAKE_C_FLAGS_INIT "-fPIC -rtlib=compiler-rt -resource-dir=${_sb4_resource_dir}")
+set(CMAKE_CXX_FLAGS_INIT "-fPIC -rtlib=compiler-rt -resource-dir=${_sb4_resource_dir} -stdlib=libc++ -isystem ${_sb4_sysroot}/usr/include/c++/v1")
+set(CMAKE_EXE_LINKER_FLAGS_INIT "-fuse-ld=${SB4_LLD} -rtlib=compiler-rt -resource-dir=${_sb4_resource_dir} -Wl,-z,max-page-size=16384")
+set(CMAKE_SHARED_LINKER_FLAGS_INIT "-fuse-ld=${SB4_LLD} -rtlib=compiler-rt -resource-dir=${_sb4_resource_dir} -Wl,-z,max-page-size=16384")
+set(CMAKE_MODULE_LINKER_FLAGS_INIT "-fuse-ld=${SB4_LLD} -rtlib=compiler-rt -resource-dir=${_sb4_resource_dir} -Wl,-z,max-page-size=16384")
+set(CMAKE_FIND_ROOT_PATH "${_sb4_sysroot}")
+set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
